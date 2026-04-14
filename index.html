@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+        if (!byObra[r.obra]) {
+          byObra[r.obra] = { total: 0, conforme: 0, naoConforme: 0, pendente: 0 };
+        }
+        byObra[r.obra].total += 1;
+        if (r.status === 'Conforme') byObra[r.obra].conforme += 1;
+        if (r.status === 'Não conforme') byObra[r.obra].naoConforme += 1;
+        if (r.status === 'Pendente de ajuste') byObra[r.obra].pendente += 1;
+      });
+
+      const obraSummary = document.getElementById('obraSummary');
+      const obras = Object.entries(byObra);
+      obraSummary.innerHTML = obras.length
+        ? obras.map(([obra, v]) => `
+            <tr>
+              <td>${obra}</td>
+              <td>${v.total}</td>
+              <td>${v.conforme}</td>
+              <td>${v.naoConforme}</td>
+              <td>${v.pendente}</td>
+            </tr>
+          `).join('')
+        : '<tr><td colspan="5"><div class="empty">Sem dados para exibir.</div></td></tr>';
+    }
+
+    function renderTable() {
+      const obra = document.getElementById('filterObra').value.toLowerCase();
+      const status = document.getElementById('filterStatus').value;
+      const servico = document.getElementById('filterServico').value.toLowerCase();
+      const auditor = document.getElementById('filterAuditor').value.toLowerCase();
+
+      const filtered = records.filter(r => {
+        return (!obra || r.obra.toLowerCase().includes(obra)) &&
+               (!status || r.status === status) &&
+               (!servico || r.servico.toLowerCase().includes(servico)) &&
+               (!auditor || r.auditor.toLowerCase().includes(auditor));
+      });
+
+      const tbody = document.getElementById('recordsTable');
+      tbody.innerHTML = filtered.length ? filtered.map(r => `
+        <tr>
+          <td>${formatDateBR(r.dataAuditoria)}</td>
+          <td>${r.obra}</td>
+          <td>${[r.bloco, r.unidade, r.localDetalhado].filter(Boolean).join(' / ') || '-'}</td>
+          <td>
+            <strong>${r.servico}</strong><br>
+            <span class="muted">${r.tipoServico || '-'}</span>
+          </td>
+          <td>${r.executor}</td>
+          <td>${r.auditor}</td>
+          <td><span class="badge ${getStatusClass(r.status)}">${r.status}</span></td>
+          <td>${r.fotos?.length || 0}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="8"><div class="empty">Nenhum registro encontrado.</div></td></tr>';
+    }
+
+    ['filterObra', 'filterStatus', 'filterServico', 'filterAuditor'].forEach(id => {
+      document.getElementById(id).addEventListener('input', renderTable);
+      document.getElementById(id).addEventListener('change', renderTable);
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'auditorias-obras.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('importFile').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        if (!Array.isArray(imported)) throw new Error('Arquivo inválido');
+        records = imported;
+        saveRecords();
+        renderDashboard();
+        renderTable();
+        alert('Dados importados com sucesso.');
+      } catch {
+        alert('Não foi possível importar o arquivo.');
+      }
+    });
+
+    document.getElementById('dataAuditoria').value = new Date().toISOString().slice(0, 10);
+    renderDashboard();
+    renderTable();
+  </script>
+</body>
+</html>
